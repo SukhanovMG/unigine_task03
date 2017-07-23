@@ -24,7 +24,14 @@ struct Sprite
 	uint color; // bgra
 };
 
-struct Particle : public Sprite
+template <typename T>
+struct ListElement
+{
+	T *next, *prev;
+	ListElement() : next(nullptr), prev(nullptr) {}
+};
+
+struct Particle : public Sprite, public ListElement<Particle>
 {
 	vec3 velocity;
 	int start_tick; // it was created on this tick
@@ -77,6 +84,7 @@ private:
 	int tick; // different in different systems, because they might get stopped!
 	float emit_tick;
 	Particle *first;
+	Particle *last;
 	int count;
 	vec3 pos;
 
@@ -91,7 +99,8 @@ System::System(vec3 system_pos, const Settings & s)
 	: st(s)
 	, tick(0)
 	, emit_tick(0.0f)
-	, first(NULL)
+	, first(nullptr)
+	, last(nullptr)
 	, count(0)
 	, pos(system_pos)
 {}
@@ -176,6 +185,55 @@ void System::Tick()
 int System::GetCount()
 {
 	return count;
+}
+
+Particle* System::Create()
+{
+	Particle* new_particle = new Particle();
+	if (nullptr == first)
+	{
+		first = new_particle;
+		last = new_particle;
+	}
+	else
+	{
+		last->next = new_particle;
+		new_particle->prev = last;
+	}
+	count++;
+	return new_particle;
+}
+
+Particle* System::Kill(Particle* p)
+{
+	if (nullptr == p)
+		return nullptr;
+
+	Particle* next = p->next;
+
+	if (nullptr == p->prev)
+		first = p->next;
+	else
+		p->prev->next = p->next;
+
+	if (nullptr == p->next)
+		last = p->prev;
+	else
+		p->next->prev = p->prev;
+
+	count--;
+	delete p;
+	return next;
+}
+
+Particle* System::GetFirst()
+{
+	return first;
+}
+
+Particle* System::GetNext(Particle* p)
+{
+	return p->next;
 }
 
 ///////////////////////////////////////////////////////////////////////////
