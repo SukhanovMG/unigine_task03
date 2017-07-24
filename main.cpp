@@ -199,6 +199,7 @@ Particle* System::Create()
 	{
 		last->next = new_particle;
 		new_particle->prev = last;
+		last = new_particle;
 	}
 	count++;
 	return new_particle;
