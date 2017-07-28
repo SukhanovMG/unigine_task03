@@ -1,21 +1,92 @@
+struct Particle : public IParticle
+{
+	Particle() : prev(nullptr), next(nullptr) {}
+	struct Particle *prev, *next;
+};
+
 template <typename T>
-struct ListElem
+class List
 {
-	ListElem() : prev(nullptr), next(nullptr) {}
-	T *prev, *next;
+public:
+	List() : m_first(nullptr), m_last(nullptr) {}
+	
+	T* begin() { return m_first; }
+	T* end() { return m_last; }
+	void push_back(T*);
+	T* emplace_back();
+	void remove(T*);
+	T* erase(T*);
+private:
+	T *m_first, *m_last;
 };
 
-struct Particle : public IParticle, public ListElem<Particle>
+template <typename T>
+void List<T>::push_back(T *elem)
 {
+	if (elem == nullptr)
+		return;
+	if (nullptr == m_first)
+	{
+		elem->next = nullptr;
+		elem->prev = nullptr;
+		m_first = elem;
+		m_last = elem;
+	}
+	else
+	{
+		m_last->next = elem;
+		elem->next = nullptr;
+		elem->prev = m_last;
+		m_last = elem;
+	}
+}
 
-};
+template <typename T>
+T* List<T>::emplace_back()
+{
+	T *new_elem = new T();
+	push_back(new_elem);
+	return new_elem;	
+}
+
+template <typename T>
+void List<T>::remove(T* elem)
+{
+	if (nullptr == elem)
+		return;
+
+	if (nullptr == elem->prev)
+		m_first = elem->next;
+	else
+		elem->prev->next = elem->next;
+
+	if (nullptr == elem->next)
+		m_last = elem->prev;
+	else
+		elem->next->prev = elem->prev;	
+}
+
+template <typename T>
+T* List<T>::erase(T* elem)
+{
+	if (nullptr == elem)
+		return nullptr;
+
+	T* next = elem->next;
+
+	remove(elem);
+
+	delete elem;
+	return next;
+}
 
 class System : public ISystem<Particle*>
 {
 public:
 	explicit System(vec3 system_pos, const Settings & s);
 private:
-	Particle *first, *last;
+	List<Particle> pool_lst;
+	List<Particle> lst;
 
 	virtual Particle* Create() override;
 	virtual Particle* Kill(Particle* p) override;
@@ -25,59 +96,51 @@ private:
 };
 
 System::System(vec3 system_pos, const Settings & s)
-	: ISystem<Particle*>(system_pos, s),
-	first(nullptr),
-	last(nullptr)
-{}
+	: ISystem<Particle*>(system_pos, s)
+{
+	for (int i = 0; i < 1000; i++)
+	{
+		pool_lst.emplace_back();
+	}
+}
 
 Particle* System::Create()
 {
-	Particle* new_particle = new Particle();
-	if (nullptr == first)
+	count++;
+	if (pool_lst.begin() != nullptr)
 	{
-		first = new_particle;
-		last = new_particle;
+		Particle* new_elem = pool_lst.end();
+		pool_lst.remove(new_elem);
+		lst.push_back(new_elem);
+		return new_elem;
 	}
 	else
-	{
-		last->next = new_particle;
-		new_particle->prev = last;
-		last = new_particle;
-	}
-	count++;
-	return new_particle;
+		return lst.emplace_back();
 }
 
 Particle* System::Kill(Particle* p)
 {
-	if (nullptr == p)
+	if (p == nullptr)
 		return nullptr;
-
-	Particle* next = p->next;
-
-	if (nullptr == p->prev)
-		first = p->next;
-	else
-		p->prev->next = p->next;
-
-	if (nullptr == p->next)
-		last = p->prev;
-	else
-		p->next->prev = p->prev;
-
 	count--;
-	delete p;
+	Particle* next = p->next;
+	lst.remove(p);
+	pool_lst.push_back(p);
 	return next;
 }
 
 Particle* System::GetFirst()
 {
-	return first;
+	return lst.begin();
 }
 
 Particle* System::GetEnd()
 {
-	return last->next;
+	Particle* last = lst.end();
+	if (last == nullptr)
+		return nullptr;
+	else
+		return last->next;
 }
 
 Particle* System::GetNext(Particle* p)
