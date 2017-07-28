@@ -9,13 +9,18 @@ class List
 {
 public:
 	List() : m_first(nullptr), m_last(nullptr) {}
+	~List()
+	{
+		while (m_last != nullptr)
+			remove(m_last);
+	}
 	
 	T* begin() { return m_first; }
 	T* end() { return m_last; }
-	void push_back(T*);
-	T* emplace_back();
-	void remove(T*);
-	T* erase(T*);
+	void push_back(T*); // добавить уже имеющийся T*
+	T* emplace_back(); // Создать новый и добавить, возвращает указатель на добавленный элемент
+	void remove(T*); // Удалить из списка, сам элемент не удалять
+	T* erase(T*); // Удалить из списка и удалить элемент
 private:
 	T *m_first, *m_last;
 };
@@ -85,7 +90,10 @@ class System : public ISystem<Particle*>
 public:
 	explicit System(vec3 system_pos, const Settings & s);
 private:
+	// Список с заранее заготовленными Particle
+	// Помог сэкономить целый 1 (один) процент времени
 	List<Particle> pool_lst;
+	// Список актуальных партиклов
 	List<Particle> lst;
 
 	virtual Particle* Create() override;
